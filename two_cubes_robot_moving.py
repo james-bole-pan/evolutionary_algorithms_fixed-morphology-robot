@@ -1,18 +1,22 @@
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Constants
 g = np.array([0.0, 0.0, -9.81])  # Gravity
-dt = 0.0001
+dt = 0.001
 k = 1000.0  # Spring constant
 L0 = 1.0  # Rest length of the spring
-damping = 1.0  # Damping constant
+damping = 0.999  # Damping constant
+omega = 2 * np.pi * 5  # Frequency of oscillation (0.5 Hz in this case)
+
+random.seed(42)
 
 # Mass Definition
 class Mass:
-    def __init__(self, p, v, m=0.1):
+    def __init__(self, p, v, m=1.0):
         self.m = m
         self.p = np.array(p)
         self.v = np.array(v)
@@ -21,15 +25,17 @@ class Mass:
 
 # Spring Definition
 class Spring:
-    def __init__(self, L0, k, m1, m2):
+    def __init__(self, L0, k, m1, m2, index):
         self.L0 = L0
         self.k = k
         self.m1 = m1
         self.m2 = m2
+        self.index = index
 
 # Initialize 8 masses for the cube
 half_L0 = L0/2
-drop_height = 2.0
+drop_height = 1.0 # 0.5 is the resting height
+
 masses = [
     Mass([-half_L0, -half_L0, -half_L0 + drop_height], [0.0, 0.0, 0.0]),  # 0
     Mass([half_L0, -half_L0, -half_L0 + drop_height], [0.0, 0.0, 0.0]),   # 1
@@ -51,69 +57,68 @@ masses += [
 
 # Connect the masses with springs to form a cube
 springs = [
-    Spring(L0, k, masses[0], masses[1]),  # Base square
-    Spring(L0, k, masses[1], masses[3]),
-    Spring(L0, k, masses[3], masses[2]),
-    Spring(L0, k, masses[2], masses[0]),
-    Spring(L0, k, masses[4], masses[5]),  # Top square
-    Spring(L0, k, masses[5], masses[7]),
-    Spring(L0, k, masses[7], masses[6]),
-    Spring(L0, k, masses[6], masses[4]),
-    Spring(L0, k, masses[0], masses[4]),  # Vertical edges
-    Spring(L0, k, masses[1], masses[5]),
-    Spring(L0, k, masses[2], masses[6]),
-    Spring(L0, k, masses[3], masses[7]),
+    Spring(L0, k, masses[0], masses[1], 0),  # Base square
+    Spring(L0, k, masses[1], masses[3], 1),
+    Spring(L0, k, masses[3], masses[2], 2),
+    Spring(L0, k, masses[2], masses[0], 3),
+    Spring(L0, k, masses[4], masses[5], 4),  # Top square
+    Spring(L0, k, masses[5], masses[7], 5),
+    Spring(L0, k, masses[7], masses[6], 6),
+    Spring(L0, k, masses[6], masses[4], 7),
+    Spring(L0, k, masses[0], masses[4], 8),  # Vertical edges
+    Spring(L0, k, masses[1], masses[5], 9),
+    Spring(L0, k, masses[2], masses[6], 10),
+    Spring(L0, k, masses[3], masses[7], 11),
 ]
 short_diag_length = np.sqrt(2 * L0**2)
 springs += [
-    Spring(short_diag_length, k, masses[0], masses[3]),
-    Spring(short_diag_length, k, masses[1], masses[2]),
-    Spring(short_diag_length, k, masses[4], masses[7]),
-    Spring(short_diag_length, k, masses[5], masses[6]),
-    # Short Diagonals between opposite faces
-    Spring(short_diag_length, k, masses[0], masses[5]),
-    Spring(short_diag_length, k, masses[1], masses[4]),
-    Spring(short_diag_length, k, masses[2], masses[7]),
-    Spring(short_diag_length, k, masses[3], masses[6]),
-    Spring(short_diag_length, k, masses[1], masses[7]),
-    Spring(short_diag_length, k, masses[0], masses[6]),
-    Spring(short_diag_length, k, masses[3], masses[5]),
-    Spring(short_diag_length, k, masses[2], masses[4])
+    Spring(short_diag_length, k, masses[0], masses[3], 12),
+    Spring(short_diag_length, k, masses[1], masses[2], 13),
+    Spring(short_diag_length, k, masses[4], masses[7], 14),
+    Spring(short_diag_length, k, masses[5], masses[6], 15),
+    Spring(short_diag_length, k, masses[0], masses[5], 16),
+    Spring(short_diag_length, k, masses[1], masses[4], 17),
+    Spring(short_diag_length, k, masses[2], masses[7], 18),
+    Spring(short_diag_length, k, masses[3], masses[6], 19),
+    Spring(short_diag_length, k, masses[1], masses[7], 20),
+    Spring(short_diag_length, k, masses[0], masses[6], 21),
+    Spring(short_diag_length, k, masses[3], masses[5], 22),
+    Spring(short_diag_length, k, masses[2], masses[4], 23)
 ]
 
 # Long Diagonals
 long_diag_length = np.sqrt(3 * L0**2)
 springs += [
-    Spring(long_diag_length, k, masses[0], masses[7]),
-    Spring(long_diag_length, k, masses[1], masses[6]),
-    Spring(long_diag_length, k, masses[2], masses[5]),
-    Spring(long_diag_length, k, masses[3], masses[4])
+    Spring(long_diag_length, k, masses[0], masses[7], 24),
+    Spring(long_diag_length, k, masses[1], masses[6], 25),
+    Spring(long_diag_length, k, masses[2], masses[5], 26),
+    Spring(long_diag_length, k, masses[3], masses[4], 27)
 ]
 
 # Springs for the second cube
 springs += [
-    Spring(L0, k, masses[8], masses[9]), 
-    Spring(L0, k, masses[9], masses[11]),
-    Spring(L0, k, masses[11], masses[10]),
-    Spring(L0, k, masses[10], masses[8]),
-    Spring(L0, k, masses[6], masses[10]),
-    Spring(L0, k, masses[7], masses[11]),
-    Spring(L0, k, masses[4], masses[8]),
-    Spring(L0, k, masses[5], masses[9]),
-    Spring(short_diag_length, k, masses[6], masses[11]),
-    Spring(short_diag_length, k, masses[7], masses[10]),
-    Spring(short_diag_length, k, masses[4], masses[9]),
-    Spring(short_diag_length, k, masses[5], masses[8]),
-    Spring(short_diag_length, k, masses[4], masses[10]),
-    Spring(short_diag_length, k, masses[5], masses[11]),
-    Spring(short_diag_length, k, masses[6], masses[8]),
-    Spring(short_diag_length, k, masses[7], masses[9]),
-    Spring(short_diag_length, k, masses[9], masses[10]),
-    Spring(short_diag_length, k, masses[8], masses[11]),
-    Spring(long_diag_length, k, masses[6], masses[9]),
-    Spring(long_diag_length, k, masses[7], masses[8]),
-    Spring(long_diag_length, k, masses[4], masses[11]),
-    Spring(long_diag_length, k, masses[5], masses[10])
+    Spring(L0, k, masses[8], masses[9], 28), 
+    Spring(L0, k, masses[9], masses[11], 29),
+    Spring(L0, k, masses[11], masses[10], 30),
+    Spring(L0, k, masses[10], masses[8], 31),
+    Spring(L0, k, masses[6], masses[10], 32),
+    Spring(L0, k, masses[7], masses[11], 33),
+    Spring(L0, k, masses[4], masses[8], 34),
+    Spring(L0, k, masses[5], masses[9], 35),
+    Spring(short_diag_length, k, masses[6], masses[11], 36),
+    Spring(short_diag_length, k, masses[7], masses[10], 37),
+    Spring(short_diag_length, k, masses[4], masses[9], 38),
+    Spring(short_diag_length, k, masses[5], masses[8], 39),
+    Spring(short_diag_length, k, masses[4], masses[10], 40),
+    Spring(short_diag_length, k, masses[5], masses[11], 41),
+    Spring(short_diag_length, k, masses[6], masses[8], 42),
+    Spring(short_diag_length, k, masses[7], masses[9], 43),
+    Spring(short_diag_length, k, masses[9], masses[10], 44),
+    Spring(short_diag_length, k, masses[8], masses[11], 45),
+    Spring(long_diag_length, k, masses[6], masses[9], 46),
+    Spring(long_diag_length, k, masses[7], masses[8], 47),
+    Spring(long_diag_length, k, masses[4], masses[11], 48),
+    Spring(long_diag_length, k, masses[5], masses[10], 49)
 ]
 
 def get_cube_faces():
@@ -138,6 +143,25 @@ def get_floor_tile():
             [floor_size, floor_size, 0], 
             [-floor_size, floor_size, 0]]
 
+spring_list_length = 50
+parameter_list = []
+b = 0.3  # Amplitude of the breathing oscillation
+c = 0  # Phase shift (can be adjusted if needed)
+k = 1000.0  # Spring constant
+
+for i in range(spring_list_length):
+    # b = random.uniform(0.1, 0.3)
+    # c = random.uniform(0, 2 * np.pi)
+    # k = random.randint(5000, 6000)
+    parameter_list.append([springs[i].L0, b, c, k])
+
+KE_list = []
+PE_list = []
+TE_list = []
+
+# Add a time variable to track the simulation time
+t = 0.0
+
 KE_list = []
 PE_list = []
 TE_list = []
@@ -145,6 +169,9 @@ G_PE_list = []
 S_PE_list = []
 
 def simulation_step(masses, springs, dt):
+    global t  # Declare t as global to update its value
+    t += dt  # Increment simulation time
+
     # Reset forces on each mass
     for mass in masses:
         mass.f = np.zeros(3, dtype=float)
@@ -157,6 +184,10 @@ def simulation_step(masses, springs, dt):
 
     # Calculate spring forces
     for spring in springs:
+        a, b, c, k = parameter_list[spring.index]
+        spring.L0 = a + b * np.sin(omega * t + c)
+        spring.k = k
+
         delta_p = spring.m1.p - spring.m2.p
         delta_length = np.linalg.norm(delta_p)
         if delta_length == 0:
