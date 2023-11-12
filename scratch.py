@@ -12,7 +12,6 @@ damping = 0.75  # Damping constant
 mu_s = 1.0  # Static friction coefficient
 mu_k = 0.8  # Kinetic friction coefficient
 
-# Mass Definition
 class Mass:
     def __init__(self, p, v, m=0.1):
         self.m = m
@@ -21,7 +20,6 @@ class Mass:
         self.a = np.zeros(3,dtype=float)
         self.f = np.zeros(3,dtype=float)
 
-# Spring Definition
 class Spring:
     def __init__(self, L0, k, m1, m2):
         self.L0 = L0
@@ -29,9 +27,19 @@ class Spring:
         self.m1 = m1
         self.m2 = m2
 
+b_dict = np.load('best_b_dict.npy', allow_pickle='TRUE')
+c_dict = np.load('best_c_dict.npy', allow_pickle='TRUE')
+k_dict = np.load('best_k_dict.npy', allow_pickle='TRUE')
+
+# get the values in b_dict
+b_values = list(b_dict.item().values())
+c_values = list(c_dict.item().values())
+k_values = list(k_dict.item().values())
+
+
 # Initialize 8 masses for the cube
 half_L0 = L0/2
-drop_height = 2.0
+drop_height = 1.0
 masses = [
     Mass([-half_L0, -half_L0, -half_L0 + drop_height], [0.0, 0.0, 0.0]),  # 0
     Mass([half_L0, -half_L0, -half_L0 + drop_height], [0.0, 0.0, 0.0]),   # 1
@@ -150,11 +158,11 @@ spring_initial_length_dict = {}
 spring_b_list = {}
 spring_c_list = {}
 omega = 2*np.pi*2
-for spring in springs:
-    spring_initial_length_dict[spring] = spring.L0
-    spring_b_list[spring] = 0#np.random.uniform(0.2, 0.3)
-    spring_c_list[spring] = 0#np.random.uniform(0, 2*np.pi*0.1)
-    #spring.k = np.random.uniform(1000, 1200)
+for i  in range(len(springs)):
+    spring_initial_length_dict[springs[i]] = springs[i].L0
+    spring_b_list[springs[i]] = b_values[i]
+    spring_c_list[springs[i]] = c_values[i]
+    springs[i].k = k_values[i]
 
 t = 0.0
 
@@ -263,7 +271,7 @@ ax.set_zlim([0, 4])
 ax.set_xlabel('X')
 ax.set_ylabel('Y')  
 ax.set_zlabel('Z')
-ax.set_title('Dropping and Bouncing Cube in 3D')
+ax.set_title('Robot moving in 3D')
 
 def init():
     for point in points:
